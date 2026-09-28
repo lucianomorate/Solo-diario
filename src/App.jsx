@@ -446,7 +446,7 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
   );
 }
 
-function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
+function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient }) {
   // Calcular datos para cada cliente
   const datosClientes = clients.map((cliente) => {
     const clientePrestamos = Object.values(prestamos).filter((p) => p.cliente_id === cliente.id);
@@ -482,30 +482,53 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
       </div>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--card-bg)' }}>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: 700, color: 'var(--muted)' }}>Cliente</th>
-              <th style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: '0.8rem' }}>Teléfono</th>
-              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Prestado</th>
-              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Ganancia</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div style={{ fontSize: '0.9rem' }}>
+          <div style={{ borderBottom: '2px solid var(--border)', background: 'var(--card-bg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', flex: 1, alignItems: 'center' }}>
+              <div style={{ flex: 1, fontWeight: 700, color: 'var(--muted)' }}>Cliente</div>
+              <div style={{ textAlign: 'right', fontWeight: 700, color: 'var(--muted)', minWidth: '100px' }}>Prestado</div>
+              <div style={{ textAlign: 'right', fontWeight: 700, color: 'var(--muted)', minWidth: '100px' }}>Ganancia</div>
+            </div>
+            <div style={{ minWidth: '120px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Acción</div>
+          </div>
+          <div>
             {clientesOrdenados.map((cliente) => (
-              <tr key={cliente.id} style={{ borderBottom: '1px solid var(--border)', background: cliente.totalPrestado > 0 ? 'var(--card-bg)' : 'transparent' }}>
-                <td style={{ padding: '12px', fontWeight: 600 }}>{cliente.nombre}</td>
-                <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</td>
-                <td style={{ padding: '12px', textAlign: 'right', color: 'var(--amber)' }}>
-                  <span style={{ fontWeight: 700 }}>{fmt(cliente.totalPrestado)}</span>
-                </td>
-                <td style={{ padding: '12px', textAlign: 'right', color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)' }}>
-                  <span style={{ fontWeight: 700 }}>{fmt(Math.round(cliente.totalGanancia))}</span>
-                </td>
+              <tr key={cliente.id} style={{ borderBottom: '1px solid var(--border)', background: cliente.totalPrestado > 0 ? 'var(--card-bg)' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', flex: 1, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>{cliente.nombre}</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', color: 'var(--amber)', fontWeight: 700, minWidth: '100px' }}>
+                    {fmt(cliente.totalPrestado)}
+                  </div>
+                  <div style={{ textAlign: 'right', color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)', fontWeight: 700, minWidth: '100px' }}>
+                    {fmt(Math.round(cliente.totalGanancia))}
+                  </div>
+                </div>
+                <button
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.7rem',
+                    background: 'rgba(239,68,68,0.1)',
+                    color: 'var(--red, #ef4444)',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '12px'
+                  }}
+                  onClick={() => onDeleteClient(cliente.id)}
+                  title="Eliminar cliente"
+                >
+                  🗑 Eliminar
+                </button>
               </tr>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
@@ -1852,6 +1875,7 @@ export default function SoloDiarioApp() {
                   clients={clients}
                   prestamos={prestamoMap}
                   cuotasPorCliente={cuotasPorCliente}
+                  onDeleteClient={(id) => setDeleteTargetId(id)}
                 />
               )}
               {screen === 'historial' && (
