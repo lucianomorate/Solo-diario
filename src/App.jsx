@@ -18,7 +18,7 @@ const supabase = createClient(
 
 const fmt = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n || 0);
 const INTERVALS = { Día: 1, Semana: 7, Quincena: 15, Mensual: 30 };
-const backTargets = { agregar: 'dashboard', nuevoCliente: 'agregar', nuevoPrestamo: 'agregar', nuevoPrestamoForm: 'nuevoPrestamo', prestamos: 'dashboard', pago: 'dashboard', clientesPrestamos: 'dashboard', historial: 'dashboard' };
+const backTargets = { agregar: 'dashboard', nuevoCliente: 'agregar', nuevoPrestamo: 'agregar', nuevoPrestamoForm: 'nuevoPrestamo', prestamos: 'dashboard', pago: 'dashboard', clientesPrestamos: 'dashboard', historial: 'dashboard', clientes: 'dashboard' };
 
 function calcularSiguienteFecha(fecha, frecuencia) {
   const [year, month, day] = fecha.split('-').map(Number);
@@ -259,8 +259,9 @@ function Sidebar({ screen, goTo, onLogout }) {
       </div>
       <div className="flex flex-col gap-1">
         <button className={`sd-nav-link ${screen === 'dashboard' || screen === 'pago' ? 'active' : ''}`} onClick={() => goTo('dashboard')}><Home size={16} /> Inicio</button>
-        <button className={`sd-nav-link ${screen !== 'dashboard' && screen !== 'pago' && screen !== 'historial' ? 'active' : ''}`} onClick={() => goTo('agregar')}><Plus size={16} /> Agregar</button>
+        <button className={`sd-nav-link ${screen === 'clientes' ? 'active' : ''}`} onClick={() => goTo('clientes')}><Users size={16} /> Clientes</button>
         <button className={`sd-nav-link ${screen === 'historial' ? 'active' : ''}`} onClick={() => goTo('historial')}><BarChart3 size={16} /> Historial</button>
+        <button className={`sd-nav-link ${screen === 'agregar' || screen === 'nuevoCliente' || screen === 'nuevoPrestamo' || screen === 'nuevoPrestamoForm' ? 'active' : ''}`} onClick={() => goTo('agregar')}><Plus size={16} /> Agregar</button>
       </div>
       <div style={{ marginTop: 'auto' }}>
         <button className="sd-nav-link" onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button>
@@ -275,18 +276,21 @@ function BottomNav({ screen, goTo, onLogout }) {
       <button className={`sd-bottomnav-btn ${screen === 'dashboard' || screen === 'pago' ? 'active' : ''}`} onClick={() => goTo('dashboard')}>
         <Home size={19} /> Inicio
       </button>
-      <button className={`sd-bottomnav-btn ${screen === 'historial' ? 'active' : ''}`} onClick={() => goTo('historial')}>
-        <BarChart3 size={19} /> Historial
+      <button className={`sd-bottomnav-btn ${screen === 'clientes' ? 'active' : ''}`} onClick={() => goTo('clientes')}>
+        <Users size={19} /> Clientes
       </button>
       <button className="sd-bottomnav-btn" onClick={() => goTo('agregar')}>
         <div className="sd-fab"><Plus size={20} /></div>
+      </button>
+      <button className={`sd-bottomnav-btn ${screen === 'historial' ? 'active' : ''}`} onClick={() => goTo('historial')}>
+        <BarChart3 size={19} /> Historial
       </button>
     </div>
   );
 }
 
 function TopBar({ screen, goBack, dateLabel }) {
-  const titles = { dashboard: 'Solo Diario', agregar: 'Agregar', nuevoCliente: 'Nuevo cliente', nuevoPrestamo: 'Nuevo préstamo', nuevoPrestamoForm: 'Nuevo préstamo', pago: 'Cobro', historial: 'Historial Mensual' };
+  const titles = { dashboard: 'Solo Diario', agregar: 'Agregar', nuevoCliente: 'Nuevo cliente', nuevoPrestamo: 'Nuevo préstamo', nuevoPrestamoForm: 'Nuevo préstamo', pago: 'Cobro', historial: 'Historial Mensual', clientes: 'Planilla de Clientes' };
   return (
     <div className="sd-topbar">
       <div className="flex items-center gap-3">
@@ -436,6 +440,104 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
               {c.nombre}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
+  // Calcular datos para cada cliente
+  const datosClientes = clients.map((cliente) => {
+    const clientePrestamos = Object.values(prestamos).filter((p) => p.cliente_id === cliente.id);
+
+    let totalPrestado = 0;
+    let totalGanancia = 0;
+
+    clientePrestamos.forEach((prestamo) => {
+      totalPrestado += prestamo.monto_prestado;
+
+      const cuotas = cuotasPorCliente[prestamo.id] || [];
+      cuotas.forEach((c) => {
+        if (c.pagada) {
+          const gananciaPorCuota = c.monto - (prestamo.monto_prestado / prestamo.cantidad_cuotas);
+          totalGanancia += gananciaPorCuota;
+        }
+      });
+    });
+
+    return {
+      id: cliente.id,
+      nombre: cliente.nombre,
+      telefono: cliente.telefono,
+      totalPrestado,
+      totalGanancia,
+      prestamosActivos: clientePrestamos.filter((p) => {
+        const cuotas = cuotasPorCliente[p.id] || [];
+        return cuotas.some((c) => !c.pagada);
+      }).length,
+    };
+  });
+
+  // Ordenar por nombre
+  const clientesOrdenados = datosClientes.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-AR'));
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 md:py-10 flex flex-col gap-5 pb-10">
+      <div>
+        <h1 className="sd-display" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>Planilla de Clientes</h1>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Resumen de prestado y ganancia por cliente</p>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--card-bg)' }}>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: 700, color: 'var(--muted)' }}>Cliente</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: '0.8rem' }}>Teléfono</th>
+              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Prestado</th>
+              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Ganancia</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: '0.8rem' }}>Activos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clientesOrdenados.map((cliente) => (
+              <tr key={cliente.id} style={{ borderBottom: '1px solid var(--border)', background: cliente.totalPrestado > 0 ? 'var(--card-bg)' : 'transparent' }}>
+                <td style={{ padding: '12px', fontWeight: 600 }}>{cliente.nombre}</td>
+                <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</td>
+                <td style={{ padding: '12px', textAlign: 'right', color: 'var(--amber)' }}>
+                  <span style={{ fontWeight: 700 }}>{fmt(cliente.totalPrestado)}</span>
+                </td>
+                <td style={{ padding: '12px', textAlign: 'right', color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)' }}>
+                  <span style={{ fontWeight: 700 }}>{fmt(Math.round(cliente.totalGanancia))}</span>
+                </td>
+                <td style={{ padding: '12px', textAlign: 'center', color: cliente.prestamosActivos > 0 ? 'var(--amber)' : 'var(--muted)', fontWeight: 600 }}>
+                  {cliente.prestamosActivos}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+        <div className="sd-card" style={{ padding: '14px' }}>
+          <div className="sd-stat-label" style={{ marginBottom: '5px' }}>Total Clientes</div>
+          <div className="sd-mono" style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+            {clientesOrdenados.length}
+          </div>
+        </div>
+        <div className="sd-card" style={{ padding: '14px' }}>
+          <div className="sd-stat-label" style={{ marginBottom: '5px' }}>Total Prestado</div>
+          <div className="sd-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--amber)' }}>
+            {fmt(clientesOrdenados.reduce((a, c) => a + c.totalPrestado, 0))}
+          </div>
+        </div>
+        <div className="sd-card" style={{ padding: '14px' }}>
+          <div className="sd-stat-label" style={{ marginBottom: '5px' }}>Total Ganancia</div>
+          <div className="sd-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}>
+            {fmt(Math.round(clientesOrdenados.reduce((a, c) => a + c.totalGanancia, 0)))}
+          </div>
         </div>
       </div>
     </div>
@@ -1755,6 +1857,13 @@ export default function SoloDiarioApp() {
                   onModify={() => { setEditingPrestamoId(selectedPrestamo); setShowEditModal(true); }}
                   onUndoPayment={(cuotaId) => setUndoPaymentId(cuotaId)}
                   loading={loading}
+                />
+              )}
+              {screen === 'clientes' && (
+                <PlanillaClientes
+                  clients={clients}
+                  prestamos={prestamoMap}
+                  cuotasPorCliente={cuotasPorCliente}
                 />
               )}
               {screen === 'historial' && (
