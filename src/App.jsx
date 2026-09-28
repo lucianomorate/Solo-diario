@@ -7,7 +7,7 @@ import {
   User, Lock, Search, Plus, Wallet, Users, CheckCircle2,
   ChevronLeft, ChevronRight, Phone, Calendar as CalendarIcon,
   CheckCircle, Download, Home, UserPlus, LogOut, Banknote,
-  AlertTriangle, X, FileText, Landmark, Trash2,
+  AlertTriangle, X, FileText, Landmark, Trash2, BarChart3,
 } from 'lucide-react';
 import './App.css';
 
@@ -18,7 +18,7 @@ const supabase = createClient(
 
 const fmt = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n || 0);
 const INTERVALS = { Día: 1, Semana: 7, Quincena: 15, Mensual: 30 };
-const backTargets = { agregar: 'dashboard', nuevoCliente: 'agregar', nuevoPrestamo: 'agregar', nuevoPrestamoForm: 'nuevoPrestamo', prestamos: 'dashboard', pago: 'dashboard', clientesPrestamos: 'dashboard' };
+const backTargets = { agregar: 'dashboard', nuevoCliente: 'agregar', nuevoPrestamo: 'agregar', nuevoPrestamoForm: 'nuevoPrestamo', prestamos: 'dashboard', pago: 'dashboard', clientesPrestamos: 'dashboard', historial: 'dashboard' };
 
 function calcularSiguienteFecha(fecha, frecuencia) {
   const [year, month, day] = fecha.split('-').map(Number);
@@ -259,7 +259,8 @@ function Sidebar({ screen, goTo, onLogout }) {
       </div>
       <div className="flex flex-col gap-1">
         <button className={`sd-nav-link ${screen === 'dashboard' || screen === 'pago' ? 'active' : ''}`} onClick={() => goTo('dashboard')}><Home size={16} /> Inicio</button>
-        <button className={`sd-nav-link ${screen !== 'dashboard' && screen !== 'pago' ? 'active' : ''}`} onClick={() => goTo('agregar')}><Plus size={16} /> Agregar</button>
+        <button className={`sd-nav-link ${screen !== 'dashboard' && screen !== 'pago' && screen !== 'historial' ? 'active' : ''}`} onClick={() => goTo('agregar')}><Plus size={16} /> Agregar</button>
+        <button className={`sd-nav-link ${screen === 'historial' ? 'active' : ''}`} onClick={() => goTo('historial')}><BarChart3 size={16} /> Historial</button>
       </div>
       <div style={{ marginTop: 'auto' }}>
         <button className="sd-nav-link" onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button>
@@ -274,18 +275,18 @@ function BottomNav({ screen, goTo, onLogout }) {
       <button className={`sd-bottomnav-btn ${screen === 'dashboard' || screen === 'pago' ? 'active' : ''}`} onClick={() => goTo('dashboard')}>
         <Home size={19} /> Inicio
       </button>
+      <button className={`sd-bottomnav-btn ${screen === 'historial' ? 'active' : ''}`} onClick={() => goTo('historial')}>
+        <BarChart3 size={19} /> Historial
+      </button>
       <button className="sd-bottomnav-btn" onClick={() => goTo('agregar')}>
         <div className="sd-fab"><Plus size={20} /></div>
-      </button>
-      <button className="sd-bottomnav-btn" onClick={onLogout}>
-        <LogOut size={19} /> Salir
       </button>
     </div>
   );
 }
 
 function TopBar({ screen, goBack, dateLabel }) {
-  const titles = { dashboard: 'Solo Diario', agregar: 'Agregar', nuevoCliente: 'Nuevo cliente', nuevoPrestamo: 'Nuevo préstamo', nuevoPrestamoForm: 'Nuevo préstamo', pago: 'Cobro' };
+  const titles = { dashboard: 'Solo Diario', agregar: 'Agregar', nuevoCliente: 'Nuevo cliente', nuevoPrestamo: 'Nuevo préstamo', nuevoPrestamoForm: 'Nuevo préstamo', pago: 'Cobro', historial: 'Historial Mensual' };
   return (
     <div className="sd-topbar">
       <div className="flex items-center gap-3">
@@ -435,6 +436,103 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
               {c.nombre}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HistorialMensual({ prestamos, cuotasPorCliente }) {
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  // Calcular datos por mes
+  const datosPorMes = {};
+  const now = new Date();
+
+  // Inicializar últimos 12 meses
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    datosPorMes[key] = { prestado: 0, ganancia: 0, mes: monthNames[d.getMonth()], año: d.getFullYear() };
+  }
+
+  // Procesar préstamos (prestado)
+  Object.values(prestamos).forEach((p) => {
+    const [year, month] = p.fecha_inicio.split('-');
+    const key = `${year}-${month}`;
+    if (datosPorMes[key]) {
+      datosPorMes[key].prestado += p.monto_prestado;
+    }
+  });
+
+  // Procesar cuotas pagadas (ganancia)
+  Object.values(cuotasPorCliente).forEach((cuotas) => {
+    cuotas.forEach((c) => {
+      if (c.pagada && c.fecha_pago) {
+        const [year, month] = c.fecha_pago.split('-');
+        const key = `${year}-${month}`;
+        if (datosPorMes[key]) {
+          // Ganancia = valor de cuota - parte proporcional del monto prestado
+          const prestamo = Object.values(prestamos).find((p) => p.id === c.prestamo_id);
+          if (prestamo) {
+            const gananciaPorCuota = c.monto - (prestamo.monto_prestado / prestamo.cantidad_cuotas);
+            datosPorMes[key].ganancia += gananciaPorCuota;
+          }
+        }
+      }
+    });
+  });
+
+  const mesesOrdenados = Object.keys(datosPorMes).sort().reverse();
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6 md:py-10 flex flex-col gap-5 pb-10">
+      <div>
+        <h1 className="sd-display" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>Historial Mensual</h1>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Resumen de prestado y ganancia por mes</p>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--card-bg)' }}>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: 700, color: 'var(--muted)' }}>Mes</th>
+              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Prestado</th>
+              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Ganancia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mesesOrdenados.map((key, idx) => {
+              const dato = datosPorMes[key];
+              const hasDatos = dato.prestado > 0 || dato.ganancia > 0;
+              return (
+                <tr key={key} style={{ borderBottom: '1px solid var(--border)', background: hasDatos ? 'var(--card-bg)' : 'transparent' }}>
+                  <td style={{ padding: '12px', fontWeight: 600 }}>{dato.mes} {dato.año}</td>
+                  <td style={{ padding: '12px', textAlign: 'right', color: 'var(--amber)' }}>
+                    <span style={{ fontWeight: 700 }}>{fmt(dato.prestado)}</span>
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'right', color: dato.ganancia > 0 ? '#10b981' : 'var(--muted)' }}>
+                    <span style={{ fontWeight: 700 }}>{fmt(Math.round(dato.ganancia))}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+        <div className="sd-card" style={{ padding: '14px' }}>
+          <div className="sd-stat-label" style={{ marginBottom: '5px' }}>Total Prestado (12 meses)</div>
+          <div className="sd-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--amber)' }}>
+            {fmt(mesesOrdenados.reduce((a, k) => a + datosPorMes[k].prestado, 0))}
+          </div>
+        </div>
+        <div className="sd-card" style={{ padding: '14px' }}>
+          <div className="sd-stat-label" style={{ marginBottom: '5px' }}>Total Ganancia (12 meses)</div>
+          <div className="sd-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}>
+            {fmt(Math.round(mesesOrdenados.reduce((a, k) => a + datosPorMes[k].ganancia, 0)))}
+          </div>
         </div>
       </div>
     </div>
@@ -1657,6 +1755,12 @@ export default function SoloDiarioApp() {
                   onModify={() => { setEditingPrestamoId(selectedPrestamo); setShowEditModal(true); }}
                   onUndoPayment={(cuotaId) => setUndoPaymentId(cuotaId)}
                   loading={loading}
+                />
+              )}
+              {screen === 'historial' && (
+                <HistorialMensual
+                  prestamos={prestamoMap}
+                  cuotasPorCliente={cuotasPorCliente}
                 />
               )}
             </main>
