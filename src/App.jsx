@@ -456,14 +456,10 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
 
     clientePrestamos.forEach((prestamo) => {
       totalPrestado += prestamo.monto_prestado;
-
-      const cuotas = cuotasPorCliente[prestamo.id] || [];
-      cuotas.forEach((c) => {
-        if (c.pagada) {
-          const gananciaPorCuota = c.monto - (prestamo.monto_prestado / prestamo.cantidad_cuotas);
-          totalGanancia += gananciaPorCuota;
-        }
-      });
+      // Ganancia = (cantidad_cuotas × valor_cuota) - monto_prestado
+      const totalARecibir = prestamo.cantidad_cuotas * prestamo.valor_cuota;
+      const gananciaPrestamo = totalARecibir - prestamo.monto_prestado;
+      totalGanancia += gananciaPrestamo;
     });
 
     return {
@@ -472,10 +468,6 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
       telefono: cliente.telefono,
       totalPrestado,
       totalGanancia,
-      prestamosActivos: clientePrestamos.filter((p) => {
-        const cuotas = cuotasPorCliente[p.id] || [];
-        return cuotas.some((c) => !c.pagada);
-      }).length,
     };
   });
 
@@ -497,7 +489,6 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
               <th style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: '0.8rem' }}>Teléfono</th>
               <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Prestado</th>
               <th style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: 'var(--muted)' }}>Ganancia</th>
-              <th style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: '0.8rem' }}>Activos</th>
             </tr>
           </thead>
           <tbody>
@@ -510,9 +501,6 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente }) {
                 </td>
                 <td style={{ padding: '12px', textAlign: 'right', color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)' }}>
                   <span style={{ fontWeight: 700 }}>{fmt(Math.round(cliente.totalGanancia))}</span>
-                </td>
-                <td style={{ padding: '12px', textAlign: 'center', color: cliente.prestamosActivos > 0 ? 'var(--amber)' : 'var(--muted)', fontWeight: 600 }}>
-                  {cliente.prestamosActivos}
                 </td>
               </tr>
             ))}
