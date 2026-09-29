@@ -456,6 +456,8 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
   const [editingClientId, setEditingClientId] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [editingValue, setEditingValue] = useState('');
+  const [editingPrestamoId, setEditingPrestamoId] = useState(null);
+  const [editingNotas, setEditingNotas] = useState('');
 
   // Agrupar clientes por primera palabra
   const carpetas = {};
