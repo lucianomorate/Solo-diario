@@ -451,6 +451,268 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
   );
 }
 
+function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabase, showToast }) {
+  const [expandedCarpeta, setExpandedCarpeta] = useState(null);
+  const [editingClientId, setEditingClientId] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [editingValue, setEditingValue] = useState('');
+
+  // Agrupar clientes por primera palabra
+  const carpetas = {};
+  clients.forEach((cliente) => {
+    const primeraPalabra = cliente.nombre.split(' ')[0];
+    if (!carpetas[primeraPalabra]) {
+      carpetas[primeraPalabra] = [];
+    }
+    carpetas[primeraPalabra].push(cliente);
+  });
+
+  // Ordenar carpetas alfabéticamente
+  const carpetasOrdenadas = Object.keys(carpetas).sort();
+
+  // Calcular datos de cada cliente
+  const calcularDatos = (cliente) => {
+    const clientePrestamos = Object.values(prestamos).filter((p) => p.cliente_id === cliente.id);
+    let totalPrestado = 0;
+    let totalGanancia = 0;
+
+    clientePrestamos.forEach((prestamo) => {
+      totalPrestado += prestamo.monto_prestado;
+      if (prestamo.ganancia_personalizada !== null && prestamo.ganancia_personalizada !== undefined) {
+        totalGanancia += prestamo.ganancia_personalizada;
+      } else {
+        const totalARecibir = prestamo.cantidad_cuotas * prestamo.valor_cuota;
+        const gananciaPrestamo = totalARecibir - prestamo.monto_prestado;
+        totalGanancia += gananciaPrestamo;
+      }
+    });
+
+    return {
+      id: cliente.id,
+      nombre: cliente.nombre,
+      telefono: cliente.telefono,
+      totalPrestado,
+      totalGanancia,
+      prestamoIds: Object.values(prestamos)
+        .filter((p) => p.cliente_id === cliente.id)
+        .map(p => p.id),
+    };
+  };
+
+  const saveField = async (clienteId, field, newValue) => {
+    const clienteDatos = Object.values(prestamos)
+      .filter((p) => p.cliente_id === clienteId)
+      .map(p => p.id)[0];
+
+    if (!clienteDatos) return;
+
+    try {
+      const updateData = {};
+      if (field === 'ganancia') {
+        updateData.ganancia_personalizada = parseFloat(newValue) || 0;
+      } else if (field === 'prestado') {
+        updateData.monto_prestado = parseFloat(newValue) || 0;
+      }
+
+      const prestamoIds = Object.values(prestamos)
+        .filter((p) => p.cliente_id === clienteId)
+        .map(p => p.id);
+
+      for (const prestamoId of prestamoIds) {
+        await supabase
+          .from('prestamos')
+          .update(updateData)
+          .eq('id', prestamoId);
+      }
+
+      await onLoadData();
+      setEditingClientId(null);
+      setEditingField(null);
+      const msg = field === 'ganancia' ? 'Ganancia actualizada ✓' : 'Prestado actualizado ✓';
+      showToast(msg);
+    } catch (err) {
+      alert('Error al guardar: ' + err.message);
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 md:py-10 flex flex-col gap-5 pb-10">
+      <div>
+        <h1 className="sd-display" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>Carpetas de Clientes</h1>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Organizado por nombre</p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {carpetasOrdenadas.map((carpeta) => {
+          const clientesCarpeta = carpetas[carpeta].map(calcularDatos);
+          const totalPrestadoCarpeta = clientesCarpeta.reduce((sum, c) => sum + c.totalPrestado, 0);
+          const totalGananciaCarpeta = clientesCarpeta.reduce((sum, c) => sum + c.totalGanancia, 0);
+          const isExpanded = expandedCarpeta === carpeta;
+
+          return (
+            <div key={carpeta} style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <div
+                onClick={() => setExpandedCarpeta(isExpanded ? null : carpeta)}
+                style={{
+                  background: 'var(--card-bg)',
+                  padding: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem' }}>{carpeta}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                    {clientesCarpeta.length} cliente{clientesCarpeta.length !== 1 ? 's' : ''} •
+                    {fmt(totalPrestadoCarpeta)} • {fmt(Math.round(totalGananciaCarpeta))}
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.2rem', color: 'var(--muted)' }}>
+                  {isExpanded ? '▼' : '▶'}
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div style={{ background: 'transparent', borderTop: '1px solid var(--border)' }}>
+                  {clientesCarpeta.map((cliente) => (
+                    <div key={cliente.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{cliente.nombre}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                        <div
+                          onClick={() => {
+                            setEditingClientId(cliente.id);
+                            setEditingField('prestado');
+                            setEditingValue(Math.round(cliente.totalPrestado).toString());
+                          }}
+                          style={{
+                            textAlign: 'right',
+                            color: 'var(--amber)',
+                            fontWeight: 700,
+                            minWidth: '100px',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                          }}
+                          title="Click para editar"
+                        >
+                          {editingClientId === cliente.id && editingField === 'prestado' ? (
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                style={{
+                                  width: '80px',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  border: '1px solid var(--border)',
+                                  background: 'var(--bg)',
+                                  color: 'var(--text)',
+                                  fontSize: '0.9rem',
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') saveField(cliente.id, 'prestado', editingValue);
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => saveField(cliente.id, 'prestado', editingValue)}
+                                style={{ padding: '4px 8px', background: 'var(--amber)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }}
+                              >
+                                ✓
+                              </button>
+                            </div>
+                          ) : (
+                            fmt(Math.round(cliente.totalPrestado))
+                          )}
+                        </div>
+
+                        <div
+                          onClick={() => {
+                            setEditingClientId(cliente.id);
+                            setEditingField('ganancia');
+                            setEditingValue(Math.round(cliente.totalGanancia).toString());
+                          }}
+                          style={{
+                            textAlign: 'right',
+                            color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)',
+                            fontWeight: 700,
+                            minWidth: '100px',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                          }}
+                          title="Click para editar"
+                        >
+                          {editingClientId === cliente.id && editingField === 'ganancia' ? (
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                style={{
+                                  width: '80px',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  border: '1px solid var(--border)',
+                                  background: 'var(--bg)',
+                                  color: 'var(--text)',
+                                  fontSize: '0.9rem',
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') saveField(cliente.id, 'ganancia', editingValue);
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => saveField(cliente.id, 'ganancia', editingValue)}
+                                style={{ padding: '4px 8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }}
+                              >
+                                ✓
+                              </button>
+                            </div>
+                          ) : (
+                            fmt(Math.round(cliente.totalGanancia))
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => onDeleteClient(cliente.id)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.7rem',
+                            background: 'rgba(239,68,68,0.1)',
+                            color: 'var(--red, #ef4444)',
+                            border: '1px solid rgba(239,68,68,0.2)',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Eliminar cliente"
+                        >
+                          🗑 Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient, onLoadData, supabase, showToast }) {
   const [editingClientId, setEditingClientId] = useState(null);
   const [editingField, setEditingField] = useState(null); // 'ganancia' o 'prestado'
@@ -2111,10 +2373,9 @@ export default function SoloDiarioApp() {
                 />
               )}
               {screen === 'clientes' && (
-                <PlanillaClientes
+                <VistaCarpetas
                   clients={clients}
                   prestamos={prestamoMap}
-                  cuotasPorCliente={cuotasPorCliente}
                   onDeleteClient={(id) => setDeleteTargetId(id)}
                   onLoadData={loadData}
                   supabase={supabase}
