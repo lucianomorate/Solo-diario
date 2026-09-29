@@ -703,6 +703,15 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                           🗑 Eliminar
                         </button>
                       </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid var(--border)' }}>
+                        {Object.values(prestamos)
+                          .filter((p) => p.cliente_id === cliente.id)
+                          .map((prestamo, idx) => (
+                            <div key={prestamo.id} style={{ marginBottom: '4px' }}>
+                              PREST-{idx + 1} • {prestamo.notas || '(sin descripción)'}
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   ))}
                 </div>
