@@ -1500,13 +1500,23 @@ export default function SoloDiarioApp() {
         .eq('id', clientId);
 
       if (error) throw error;
+
+      // Reload data from Supabase
       await loadData();
+
+      // Clear the delete modal
       setDeleteTargetId(null);
+
+      // Show success toast and return to dashboard
       showToast('Cliente eliminado ✓');
-      goTo('dashboard');
+
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        setLoading(false);
+        goTo('dashboard');
+      }, 300);
     } catch (err) {
       alert('Error: ' + err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -1549,11 +1559,15 @@ export default function SoloDiarioApp() {
       await loadData();
       setDeleteTargetId(null);
       showToast('Préstamo eliminado ✓');
-      goTo('clientesPrestamos');
+
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        setLoading(false);
+        goTo('clientesPrestamos');
+      }, 300);
     } catch (err) {
       console.log('Caught error:', err);
       alert('Error: ' + err.message);
-    } finally {
       setLoading(false);
     }
   };
