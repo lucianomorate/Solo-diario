@@ -452,19 +452,29 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
 }
 
 function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient }) {
+  const [editingClientId, setEditingClientId] = useState(null);
+  const [editingGanancia, setEditingGanancia] = useState('');
+
   // Calcular datos para cada cliente
   const datosClientes = clients.map((cliente) => {
     const clientePrestamos = Object.values(prestamos).filter((p) => p.cliente_id === cliente.id);
 
     let totalPrestado = 0;
     let totalGanancia = 0;
+    let hasPersonalizado = false;
 
     clientePrestamos.forEach((prestamo) => {
       totalPrestado += prestamo.monto_prestado;
-      // Ganancia = (cantidad_cuotas × valor_cuota) - monto_prestado
-      const totalARecibir = prestamo.cantidad_cuotas * prestamo.valor_cuota;
-      const gananciaPrestamo = totalARecibir - prestamo.monto_prestado;
-      totalGanancia += gananciaPrestamo;
+      // Usar ganancia personalizada si existe
+      if (prestamo.ganancia_personalizada !== null && prestamo.ganancia_personalizada !== undefined) {
+        totalGanancia += prestamo.ganancia_personalizada;
+        hasPersonalizado = true;
+      } else {
+        // Sino, calcular: (cantidad_cuotas × valor_cuota) - monto_prestado
+        const totalARecibir = prestamo.cantidad_cuotas * prestamo.valor_cuota;
+        const gananciaPrestamo = totalARecibir - prestamo.monto_prestado;
+        totalGanancia += gananciaPrestamo;
+      }
     });
 
     return {
@@ -473,11 +483,34 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
       telefono: cliente.telefono,
       totalPrestado,
       totalGanancia,
+      prestamoIds: clientePrestamos.map(p => p.id),
     };
   });
 
   // Ordenar por nombre
   const clientesOrdenados = datosClientes.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-AR'));
+
+  const saveGanancia = async (clienteId, newGanancia) => {
+    const prestamoIds = clientesOrdenados.find(c => c.id === clienteId)?.prestamoIds || [];
+    if (prestamoIds.length === 0) return;
+
+    try {
+      // Guardar en el primer préstamo del cliente
+      const { error } = await supabase
+        .from('prestamos')
+        .update({ ganancia_personalizada: parseFloat(newGanancia) || 0 })
+        .eq('id', prestamoIds[0]);
+
+      if (error) throw error;
+
+      // Recargar datos
+      await loadData();
+      setEditingClientId(null);
+      showToast('Ganancia actualizada ✓');
+    } catch (err) {
+      alert('Error al guardar: ' + err.message);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-10 flex flex-col gap-5 pb-10">
@@ -507,8 +540,78 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                   <div style={{ textAlign: 'right', color: 'var(--amber)', fontWeight: 700, minWidth: '100px' }}>
                     {fmt(cliente.totalPrestado)}
                   </div>
-                  <div style={{ textAlign: 'right', color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)', fontWeight: 700, minWidth: '100px' }}>
-                    {fmt(Math.round(cliente.totalGanancia))}
+                  <div
+                    style={{
+                      textAlign: 'right',
+                      color: cliente.totalGanancia > 0 ? '#10b981' : 'var(--muted)',
+                      fontWeight: 700,
+                      minWidth: '100px',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      transition: 'all 0.2s',
+                      background: editingClientId === cliente.id ? 'rgba(16,185,129,0.1)' : 'transparent',
+                    }}
+                    onClick={() => {
+                      setEditingClientId(cliente.id);
+                      setEditingGanancia(Math.round(cliente.totalGanancia).toString());
+                    }}
+                    title="Click para editar ganancia"
+                  >
+                    {editingClientId === cliente.id ? (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          type="number"
+                          value={editingGanancia}
+                          onChange={(e) => setEditingGanancia(e.target.value)}
+                          style={{
+                            width: '80px',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg)',
+                            color: 'var(--text)',
+                            fontSize: '0.9rem',
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') saveGanancia(cliente.id, editingGanancia);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveGanancia(cliente.id, editingGanancia)}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setEditingClientId(null)}
+                          style={{
+                            padding: '4px 8px',
+                            background: 'var(--muted)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      fmt(Math.round(cliente.totalGanancia))
+                    )}
                   </div>
                 </div>
                 <button
