@@ -308,7 +308,7 @@ function TopBar({ screen, goBack, dateLabel }) {
   );
 }
 
-function PrestamosCliente({ client, prestamos, prestamoMap, cuotasPorCliente, onSelectPrestamo, onBack }) {
+function PrestamosCliente({ client, prestamos, prestamoMap, cuotasPorCliente, onSelectPrestamo, onBack, onDeleteClient }) {
   if (!client) return null;
   const clientePrestamos = Object.values(prestamoMap || {}).filter((p) => p.cliente_id === client.id);
 
@@ -374,9 +374,14 @@ function PrestamosCliente({ client, prestamos, prestamoMap, cuotasPorCliente, on
         )}
       </div>
 
-      <button className="sd-btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onBack}>
-        <ChevronLeft size={17} /> Volver
-      </button>
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button className="sd-btn-outline" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onBack}>
+          <ChevronLeft size={17} /> Volver
+        </button>
+        <button className="sd-btn-danger" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onDeleteClient}>
+          <Trash2 size={17} /> Eliminar
+        </button>
+      </div>
     </div>
   );
 }
@@ -1010,17 +1015,15 @@ function PagoScreen({ client, cuotas, onConfirm, onDownload, onDelete, onModify,
           </div>
         </div>
       ) : (
-        <>
-          <button className="sd-btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} disabled={loading} onClick={() => {
-            console.log('=== CLICK REGISTRAR PAGO ===');
-            console.log('onConfirm type:', typeof onConfirm);
-            console.log('loading:', loading);
-            console.log('cuotas:', cuotas.length);
-            onConfirm();
-          }}>
-            <CheckCircle size={18} /> {loading ? 'Registrando...' : 'Registrar pago'}
-          </button>
-        </>
+        <button className="sd-btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} disabled={loading} onClick={() => {
+          console.log('=== CLICK REGISTRAR PAGO ===');
+          console.log('onConfirm type:', typeof onConfirm);
+          console.log('loading:', loading);
+          console.log('cuotas:', cuotas.length);
+          onConfirm();
+        }}>
+          <CheckCircle size={18} /> {loading ? 'Registrando...' : 'Registrar pago'}
+        </button>
       )}
 
       <button className="sd-btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onDownload}>
@@ -1049,11 +1052,9 @@ function PagoScreen({ client, cuotas, onConfirm, onDownload, onDelete, onModify,
         </div>
       )}
 
-      {completed && (
-        <button className="sd-btn-danger" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} disabled={loading} onClick={onDelete}>
-          <Trash2 size={17} /> {loading ? 'Eliminando...' : 'Eliminar préstamo'}
-        </button>
-      )}
+      <button className="sd-btn-danger" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} disabled={loading} onClick={onDelete}>
+        <Trash2 size={17} /> {loading ? 'Eliminando...' : 'Eliminar préstamo'}
+      </button>
     </div>
   );
 }
@@ -1828,6 +1829,7 @@ export default function SoloDiarioApp() {
                   cuotasPorCliente={cuotasPorCliente}
                   onSelectPrestamo={openPagoFromPrestamo}
                   onBack={() => goTo('dashboard')}
+                  onDeleteClient={() => setDeleteTargetId(selected.id)}
                 />
               )}
               {screen === 'clientesPrestamos' && selected && (
@@ -1838,6 +1840,7 @@ export default function SoloDiarioApp() {
                   cuotasPorCliente={cuotasPorCliente}
                   onSelectPrestamo={openPagoFromPrestamo}
                   onBack={() => goTo('dashboard')}
+                  onDeleteClient={() => setDeleteTargetId(selected.id)}
                 />
               )}
               {screen === 'nuevoCliente' && (
