@@ -453,7 +453,8 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
 
 function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient, onLoadData, supabase, showToast }) {
   const [editingClientId, setEditingClientId] = useState(null);
-  const [editingGanancia, setEditingGanancia] = useState('');
+  const [editingField, setEditingField] = useState(null); // 'ganancia' o 'prestado'
+  const [editingValue, setEditingValue] = useState('');
 
   // Calcular datos para cada cliente
   const datosClientes = clients.map((cliente) => {
@@ -490,15 +491,22 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
   // Ordenar por nombre
   const clientesOrdenados = datosClientes.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-AR'));
 
-  const saveGanancia = async (clienteId, newGanancia) => {
+  const saveField = async (clienteId, field, newValue) => {
     const prestamoIds = clientesOrdenados.find(c => c.id === clienteId)?.prestamoIds || [];
     if (prestamoIds.length === 0) return;
 
     try {
+      const updateData = {};
+      if (field === 'ganancia') {
+        updateData.ganancia_personalizada = parseFloat(newValue) || 0;
+      } else if (field === 'prestado') {
+        updateData.monto_prestado = parseFloat(newValue) || 0;
+      }
+
       // Guardar en el primer préstamo del cliente
       const { error } = await supabase
         .from('prestamos')
-        .update({ ganancia_personalizada: parseFloat(newGanancia) || 0 })
+        .update(updateData)
         .eq('id', prestamoIds[0]);
 
       if (error) throw error;
@@ -506,7 +514,9 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
       // Recargar datos
       await onLoadData();
       setEditingClientId(null);
-      showToast('Ganancia actualizada ✓');
+      setEditingField(null);
+      const msg = field === 'ganancia' ? 'Ganancia actualizada ✓' : 'Prestado actualizado ✓';
+      showToast(msg);
     } catch (err) {
       alert('Error al guardar: ' + err.message);
     }
@@ -537,8 +547,82 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>{cliente.nombre}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
                   </div>
-                  <div style={{ textAlign: 'right', color: 'var(--amber)', fontWeight: 700, minWidth: '100px' }}>
-                    {fmt(cliente.totalPrestado)}
+                  <div
+                    style={{
+                      textAlign: 'right',
+                      color: 'var(--amber)',
+                      fontWeight: 700,
+                      minWidth: '100px',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      transition: 'all 0.2s',
+                      background: editingClientId === cliente.id && editingField === 'prestado' ? 'rgba(251,191,36,0.1)' : 'transparent',
+                    }}
+                    onClick={() => {
+                      setEditingClientId(cliente.id);
+                      setEditingField('prestado');
+                      setEditingValue(Math.round(cliente.totalPrestado).toString());
+                    }}
+                    title="Click para editar prestado"
+                  >
+                    {editingClientId === cliente.id && editingField === 'prestado' ? (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          type="number"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          style={{
+                            width: '80px',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg)',
+                            color: 'var(--text)',
+                            fontSize: '0.9rem',
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') saveField(cliente.id, 'prestado', editingValue);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveField(cliente.id, 'prestado', editingValue)}
+                          style={{
+                            padding: '4px 8px',
+                            background: 'var(--amber)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingClientId(null);
+                            setEditingField(null);
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            background: 'var(--muted)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      fmt(cliente.totalPrestado)
+                    )}
                   </div>
                   <div
                     style={{
@@ -554,16 +638,17 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                     }}
                     onClick={() => {
                       setEditingClientId(cliente.id);
-                      setEditingGanancia(Math.round(cliente.totalGanancia).toString());
+                      setEditingField('ganancia');
+                      setEditingValue(Math.round(cliente.totalGanancia).toString());
                     }}
                     title="Click para editar ganancia"
                   >
-                    {editingClientId === cliente.id ? (
+                    {editingClientId === cliente.id && editingField === 'ganancia' ? (
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <input
                           type="number"
-                          value={editingGanancia}
-                          onChange={(e) => setEditingGanancia(e.target.value)}
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
                           style={{
                             width: '80px',
                             padding: '4px',
@@ -574,12 +659,12 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                             fontSize: '0.9rem',
                           }}
                           onKeyPress={(e) => {
-                            if (e.key === 'Enter') saveGanancia(cliente.id, editingGanancia);
+                            if (e.key === 'Enter') saveField(cliente.id, 'ganancia', editingValue);
                           }}
                           autoFocus
                         />
                         <button
-                          onClick={() => saveGanancia(cliente.id, editingGanancia)}
+                          onClick={() => saveField(cliente.id, 'ganancia', editingValue)}
                           style={{
                             padding: '4px 8px',
                             background: '#10b981',
@@ -594,7 +679,10 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                           ✓
                         </button>
                         <button
-                          onClick={() => setEditingClientId(null)}
+                          onClick={() => {
+                            setEditingClientId(null);
+                            setEditingField(null);
+                          }}
                           style={{
                             padding: '4px 8px',
                             background: 'var(--muted)',
