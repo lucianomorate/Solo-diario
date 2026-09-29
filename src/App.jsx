@@ -458,6 +458,23 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
   const [editingValue, setEditingValue] = useState('');
   const [editingPrestamoId, setEditingPrestamoId] = useState(null);
   const [editingNotas, setEditingNotas] = useState('');
+  const [expandedNotasClienteId, setExpandedNotasClienteId] = useState(null);
+  const [notasEditing, setNotasEditing] = useState({});
+
+  // Guardar notas de préstamo
+  const saveNotasPrestamo = async (prestamoId, nuevasNotas) => {
+    try {
+      const { error } = await supabase
+        .from('prestamos')
+        .update({ notas: nuevasNotas })
+        .eq('id', prestamoId);
+      if (error) throw error;
+      await loadData();
+      setNotasEditing({});
+    } catch (err) {
+      alert('Error al guardar notas: ' + err.message);
+    }
+  };
 
   // Agrupar clientes por primera palabra
   const carpetas = {};
@@ -583,12 +600,71 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                     <div key={cliente.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600 }}>
-                          {Object.values(prestamos)
-                            .filter((p) => p.cliente_id === cliente.id)
-                            .map((_, idx) => idx + 1)
-                            .join(', ')} • {cliente.nombre}
+                          <span
+                            onClick={() => setExpandedNotasClienteId(expandedNotasClienteId === cliente.id ? null : cliente.id)}
+                            style={{ cursor: 'pointer', color: '#3b82f6' }}
+                            title="Click para ver/editar notas"
+                          >
+                            {Object.values(prestamos)
+                              .filter((p) => p.cliente_id === cliente.id)
+                              .map((_, idx) => idx + 1)
+                              .join(', ')}
+                          </span>
+                          {' • '}{cliente.nombre}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
+                        {expandedNotasClienteId === cliente.id && (
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                            {Object.values(prestamos)
+                              .filter((p) => p.cliente_id === cliente.id)
+                              .map((prestamo, idx) => (
+                                <div key={prestamo.id} style={{ marginBottom: '8px', fontSize: '0.8rem' }}>
+                                  <div style={{ fontWeight: 600 }}>Préstamo {idx + 1}:</div>
+                                  {notasEditing.hasOwnProperty(prestamo.id) && notasEditing[prestamo.id] !== undefined ? (
+                                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                                      <input
+                                        type="text"
+                                        value={notasEditing[prestamo.id]}
+                                        onChange={(e) => setNotasEditing({...notasEditing, [prestamo.id]: e.target.value})}
+                                        style={{
+                                          flex: 1,
+                                          padding: '4px',
+                                          borderRadius: '4px',
+                                          border: '1px solid var(--border)',
+                                          background: 'var(--bg)',
+                                          color: 'var(--text)',
+                                          fontSize: '0.8rem',
+                                        }}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') saveNotasPrestamo(prestamo.id, notasEditing[prestamo.id]);
+                                        }}
+                                      />
+                                      <button
+                                        onClick={() => saveNotasPrestamo(prestamo.id, notasEditing[prestamo.id])}
+                                        style={{ padding: '4px 8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }}
+                                      >
+                                        ✓
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      onClick={() => setNotasEditing({...notasEditing, [prestamo.id]: prestamo.notas || ''})}
+                                      style={{
+                                        marginTop: '4px',
+                                        padding: '4px',
+                                        cursor: 'pointer',
+                                        borderRadius: '4px',
+                                        color: prestamo.notas ? 'var(--text)' : 'var(--muted)',
+                                        background: 'rgba(59,130,246,0.05)',
+                                      }}
+                                    >
+                                      {prestamo.notas || '(sin descripción)'}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
