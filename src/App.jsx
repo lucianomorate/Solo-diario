@@ -469,8 +469,8 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
         .update({ notas: nuevasNotas })
         .eq('id', prestamoId);
       if (error) throw error;
-      await loadData();
-      setNotasEditing({});
+      showToast('✓ Nota guardada');
+      window.location.reload();
     } catch (err) {
       alert('Error al guardar notas: ' + err.message);
     }
