@@ -582,7 +582,12 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                   {clientesCarpeta.map((cliente) => (
                     <div key={cliente.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{cliente.nombre}</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {Object.values(prestamos)
+                            .filter((p) => p.cliente_id === cliente.id)
+                            .map((_, idx) => idx + 1)
+                            .join(', ')} • {cliente.nombre}
+                        </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
                       </div>
 
@@ -702,15 +707,6 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                         >
                           🗑 Eliminar
                         </button>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid var(--border)' }}>
-                        {Object.values(prestamos)
-                          .filter((p) => p.cliente_id === cliente.id)
-                          .map((prestamo, idx) => (
-                            <div key={prestamo.id} style={{ marginBottom: '4px' }}>
-                              PREST-{idx + 1} • {prestamo.notas || '(sin descripción)'}
-                            </div>
-                          ))}
                       </div>
                     </div>
                   ))}
