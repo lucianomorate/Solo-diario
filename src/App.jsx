@@ -607,10 +607,20 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                           >
                             {Object.values(prestamos)
                               .filter((p) => p.cliente_id === cliente.id)
-                              .map((_, idx) => idx + 1)
+                              .map((_, idx) => `PREST-${String(idx + 1).padStart(3, '0')}`)
                               .join(', ')}
                           </span>
                           {' • '}{cliente.nombre}
+                          {Object.values(prestamos).filter((p) => p.cliente_id === cliente.id).length > 0 && (
+                            <>
+                              {' — '}
+                              {Object.values(prestamos)
+                                .filter((p) => p.cliente_id === cliente.id)
+                                .map((p) => p.notas || '')
+                                .filter(n => n)
+                                .join(' | ')}
+                            </>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{cliente.telefono}</div>
                         {expandedNotasClienteId === cliente.id && (
