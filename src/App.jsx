@@ -596,7 +596,7 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
 
               {isExpanded && (
                 <div style={{ background: 'transparent', borderTop: '1px solid var(--border)' }}>
-                  {clientesCarpeta.map((cliente) => (
+                  {clientesCarpeta.map((cliente, idxCarpeta) => (
                     <div key={cliente.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600 }}>
@@ -605,10 +605,7 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                             style={{ cursor: 'pointer', color: '#3b82f6' }}
                             title="Click para ver/editar notas"
                           >
-                            {Object.values(prestamos)
-                              .filter((p) => p.cliente_id === cliente.id)
-                              .map((_, idx) => idx + 1)
-                              .join(', ')}
+                            {idxCarpeta + 1}
                           </span>
                           {' • '}{cliente.nombre}
                           {Object.values(prestamos).filter((p) => p.cliente_id === cliente.id).length > 0 && (
