@@ -1476,13 +1476,23 @@ export default function SoloDiarioApp() {
     try {
       console.log('=== DELETING CLIENT ===', clientId);
 
-      // First delete all cuotas for all prestamos of this client
-      const clientPrestamos = Object.values(prestamoMap).filter((p) => p.cliente_id === clientId);
-      console.log('Found prestamos for client:', clientPrestamos.length, clientPrestamos);
+      // Query Supabase directly for all prestamos of this client
+      const { data: clientPrestamosData, error: queryError } = await supabase
+        .from('prestamos')
+        .select('id')
+        .eq('cliente_id', clientId);
 
-      for (const prestamo of clientPrestamos) {
+      if (queryError) {
+        console.log('Error querying prestamos:', queryError);
+        throw queryError;
+      }
+
+      console.log('Found prestamos from Supabase:', clientPrestamosData.length, clientPrestamosData);
+
+      // Delete all cuotas for each prestamo
+      for (const prestamo of clientPrestamosData) {
         console.log('Deleting cuotas for prestamo:', prestamo.id);
-        const { error: cuotasError, data } = await supabase
+        const { error: cuotasError } = await supabase
           .from('cuotas')
           .delete()
           .eq('prestamo_id', prestamo.id);
@@ -1490,11 +1500,11 @@ export default function SoloDiarioApp() {
           console.log('Error deleting cuotas:', cuotasError);
           throw cuotasError;
         }
-        console.log('Cuotas deleted successfully');
+        console.log('Cuotas deleted successfully for prestamo:', prestamo.id);
       }
 
-      // Then delete all prestamos
-      for (const prestamo of clientPrestamos) {
+      // Delete all prestamos
+      for (const prestamo of clientPrestamosData) {
         console.log('Deleting prestamo:', prestamo.id);
         const { error: prestamoError } = await supabase
           .from('prestamos')
@@ -1504,25 +1514,32 @@ export default function SoloDiarioApp() {
           console.log('Error deleting prestamo:', prestamoError);
           throw prestamoError;
         }
-        console.log('Prestamo deleted successfully');
+        console.log('Prestamo deleted successfully:', prestamo.id);
       }
 
       // Finally delete the client
       console.log('Deleting client:', clientId);
-      const { error } = await supabase
+      const { error: clientError } = await supabase
         .from('clientes')
         .delete()
         .eq('id', clientId);
 
-      if (error) {
-        console.log('Error deleting client:', error);
-        throw error;
+      if (clientError) {
+        console.log('Error deleting client:', clientError);
+        throw clientError;
       }
-      console.log('Client deleted successfully');
+      console.log('Client deleted successfully:', clientId);
 
       showToast('Cliente eliminado ✓');
       setDeleteTargetId(null);
       setLoading(false);
+
+      // Verify deletion
+      const { data: verifyData } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('id', clientId);
+      console.log('Verification - Client still exists?', verifyData.length > 0, verifyData);
 
       // Force hard reload after delete to ensure fresh data
       setTimeout(() => {
