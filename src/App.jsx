@@ -1474,32 +1474,51 @@ export default function SoloDiarioApp() {
   const deleteClient = async (clientId) => {
     setLoading(true);
     try {
+      console.log('=== DELETING CLIENT ===', clientId);
+
       // First delete all cuotas for all prestamos of this client
       const clientPrestamos = Object.values(prestamoMap).filter((p) => p.cliente_id === clientId);
+      console.log('Found prestamos for client:', clientPrestamos.length, clientPrestamos);
+
       for (const prestamo of clientPrestamos) {
-        const { error: cuotasError } = await supabase
+        console.log('Deleting cuotas for prestamo:', prestamo.id);
+        const { error: cuotasError, data } = await supabase
           .from('cuotas')
           .delete()
           .eq('prestamo_id', prestamo.id);
-        if (cuotasError) throw cuotasError;
+        if (cuotasError) {
+          console.log('Error deleting cuotas:', cuotasError);
+          throw cuotasError;
+        }
+        console.log('Cuotas deleted successfully');
       }
 
       // Then delete all prestamos
       for (const prestamo of clientPrestamos) {
+        console.log('Deleting prestamo:', prestamo.id);
         const { error: prestamoError } = await supabase
           .from('prestamos')
           .delete()
           .eq('id', prestamo.id);
-        if (prestamoError) throw prestamoError;
+        if (prestamoError) {
+          console.log('Error deleting prestamo:', prestamoError);
+          throw prestamoError;
+        }
+        console.log('Prestamo deleted successfully');
       }
 
       // Finally delete the client
+      console.log('Deleting client:', clientId);
       const { error } = await supabase
         .from('clientes')
         .delete()
         .eq('id', clientId);
 
-      if (error) throw error;
+      if (error) {
+        console.log('Error deleting client:', error);
+        throw error;
+      }
+      console.log('Client deleted successfully');
 
       showToast('Cliente eliminado ✓');
       setDeleteTargetId(null);
@@ -1507,9 +1526,11 @@ export default function SoloDiarioApp() {
 
       // Force hard reload after delete to ensure fresh data
       setTimeout(() => {
+        console.log('Reloading page...');
         window.location.reload();
       }, 500);
     } catch (err) {
+      console.error('DELETE CLIENT ERROR:', err);
       alert('Error: ' + err.message);
       setLoading(false);
     }
