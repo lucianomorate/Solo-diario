@@ -607,18 +607,24 @@ function VistaCarpetas({ clients, prestamos, onDeleteClient, onLoadData, supabas
                           >
                             {Object.values(prestamos)
                               .filter((p) => p.cliente_id === cliente.id)
-                              .map((_, idx) => `PREST-${String(idx + 1).padStart(3, '0')}`)
+                              .map((_, idx) => idx + 1)
                               .join(', ')}
                           </span>
                           {' • '}{cliente.nombre}
                           {Object.values(prestamos).filter((p) => p.cliente_id === cliente.id).length > 0 && (
                             <>
                               {' — '}
-                              {Object.values(prestamos)
-                                .filter((p) => p.cliente_id === cliente.id)
-                                .map((p) => p.notas || '')
-                                .filter(n => n)
-                                .join(' | ')}
+                              <span
+                                onClick={() => setExpandedNotasClienteId(expandedNotasClienteId === cliente.id ? null : cliente.id)}
+                                style={{ cursor: 'pointer', color: '#10b981' }}
+                                title="Click para editar notas"
+                              >
+                                {Object.values(prestamos)
+                                  .filter((p) => p.cliente_id === cliente.id)
+                                  .map((p) => p.notas || '')
+                                  .filter(n => n)
+                                  .join(' | ')}
+                              </span>
                             </>
                           )}
                         </div>
