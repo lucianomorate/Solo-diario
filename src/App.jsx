@@ -498,7 +498,7 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
           </div>
           <div>
             {clientesOrdenados.map((cliente) => (
-              <tr key={cliente.id} style={{ borderBottom: '1px solid var(--border)', background: cliente.totalPrestado > 0 ? 'var(--card-bg)' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px' }}>
+              <div key={cliente.id} style={{ borderBottom: '1px solid var(--border)', background: cliente.totalPrestado > 0 ? 'var(--card-bg)' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px' }}>
                 <div style={{ display: 'flex', gap: '12px', flex: 1, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>{cliente.nombre}</div>
@@ -530,7 +530,7 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
                 >
                   🗑 Eliminar
                 </button>
-              </tr>
+              </div>
             ))}
           </div>
         </div>
