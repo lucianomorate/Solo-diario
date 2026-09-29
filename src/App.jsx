@@ -1501,20 +1501,14 @@ export default function SoloDiarioApp() {
 
       if (error) throw error;
 
-      // Reload data from Supabase
-      await loadData();
-
-      // Clear the delete modal
-      setDeleteTargetId(null);
-
-      // Show success toast and return to dashboard
       showToast('Cliente eliminado ✓');
+      setDeleteTargetId(null);
+      setLoading(false);
 
-      // Delay to ensure React re-renders with new state
+      // Force hard reload after delete to ensure fresh data
       setTimeout(() => {
-        setLoading(false);
-        goTo('dashboard');
-      }, 1000);
+        window.location.reload();
+      }, 500);
     } catch (err) {
       alert('Error: ' + err.message);
       setLoading(false);
