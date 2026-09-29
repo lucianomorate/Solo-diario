@@ -1510,11 +1510,11 @@ export default function SoloDiarioApp() {
       // Show success toast and return to dashboard
       showToast('Cliente eliminado ✓');
 
-      // Small delay to ensure state updates
+      // Delay to ensure React re-renders with new state
       setTimeout(() => {
         setLoading(false);
         goTo('dashboard');
-      }, 300);
+      }, 1000);
     } catch (err) {
       alert('Error: ' + err.message);
       setLoading(false);
