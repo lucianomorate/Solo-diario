@@ -451,7 +451,7 @@ function Dashboard({ clients, dueToday, filtered, query, setQuery, openPago, ope
   );
 }
 
-function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient }) {
+function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient, onLoadData, supabase, showToast }) {
   const [editingClientId, setEditingClientId] = useState(null);
   const [editingGanancia, setEditingGanancia] = useState('');
 
@@ -504,7 +504,7 @@ function PlanillaClientes({ clients, prestamos, cuotasPorCliente, onDeleteClient
       if (error) throw error;
 
       // Recargar datos
-      await loadData();
+      await onLoadData();
       setEditingClientId(null);
       showToast('Ganancia actualizada ✓');
     } catch (err) {
@@ -2028,6 +2028,9 @@ export default function SoloDiarioApp() {
                   prestamos={prestamoMap}
                   cuotasPorCliente={cuotasPorCliente}
                   onDeleteClient={(id) => setDeleteTargetId(id)}
+                  onLoadData={loadData}
+                  supabase={supabase}
+                  showToast={showToast}
                 />
               )}
               {screen === 'historial' && (
